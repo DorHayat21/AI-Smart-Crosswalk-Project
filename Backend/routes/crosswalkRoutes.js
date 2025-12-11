@@ -23,5 +23,20 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
+// GET /crosswalks/:id
+router.get('/:id', async (req, res) => {
+  try {
+    // We use 'req.params.id' to get the ID from the URL
+    const crosswalk = await Crosswalk.findById(req.params.id);
+    
+    // Check if it exists
+    if (!crosswalk) {
+      return res.status(404).json({ message: 'Crosswalk not found' });
+    }
+    
+    res.status(200).json(crosswalk);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 export default router;

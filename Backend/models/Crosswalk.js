@@ -12,6 +12,6 @@ const crosswalkSchema = new mongoose.Schema({
     default: 'active' 
   },
   ledSystemUrl: { type: String }
-});
+}, { versionKey: false });
 
 export default mongoose.model('Crosswalk', crosswalkSchema);

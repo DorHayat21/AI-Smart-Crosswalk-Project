@@ -35,5 +35,17 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// GET /alerts/crosswalk/:id - Get all alerts belonging to a specific crosswalk
+router.get('/crosswalk/:id', async (req, res) => {
+  try {
+    // Find alerts where 'crosswalkId' matches the ID in the URL
+    const alerts = await Alert.find({ crosswalkId: req.params.id })
+      .populate('crosswalkId')
+      .sort({ timestamp: -1 });
 
+    res.status(200).json(alerts);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 export default router;

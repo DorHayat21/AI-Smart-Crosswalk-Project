@@ -18,6 +18,7 @@ const alertSchema = new mongoose.Schema({
   isHazard: { type: Boolean, default: true },
   
   timestamp: { type: Date, default: Date.now }
-});
+}, { versionKey: false });
+
 
 export default mongoose.model('Alert', alertSchema);
