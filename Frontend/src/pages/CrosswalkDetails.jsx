@@ -42,9 +42,10 @@ const CrosswalkDetails = () => {
 
         const crosswalkAlerts = alertsData.filter(alert => {
           const alertCrosswalkId = typeof alert.crosswalkId === 'object' 
-            ? alert.crosswalkId._id 
+            ? alert.crosswalkId?._id 
             : alert.crosswalkId;
-          return alertCrosswalkId === id;
+          
+          return alertCrosswalkId?.toString() === id?.toString();
         }).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
         setAlerts(crosswalkAlerts);
@@ -90,15 +91,6 @@ const CrosswalkDetails = () => {
     setFilteredAlerts(filtered);
   }, [dateFilter, alerts]);
 
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'active': return 'bg-green-100 text-green-800 border-green-200';
-      case 'maintenance': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'inactive': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
   const getStatusText = (status) => {
     switch(status) {
       case 'active': return 'פעיל';
@@ -120,14 +112,12 @@ const CrosswalkDetails = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
         <SkeletonHeader />
-        
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
               <div className="h-8 bg-gray-200 rounded w-48 animate-pulse"></div>
               <div className="h-8 w-24 bg-blue-100 rounded-full animate-pulse"></div>
             </div>
-
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-pulse">
               <div className="h-6 bg-gray-200 rounded w-40 mb-4"></div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -137,7 +127,6 @@ const CrosswalkDetails = () => {
               </div>
             </div>
           </div>
-
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
               <SkeletonAlert key={i} />
@@ -333,12 +322,22 @@ const CrosswalkDetails = () => {
                         <h3 className="text-lg font-bold text-gray-900">{alert.description}</h3>
                       </div>
                       
+                      {alert.reasons && alert.reasons.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {alert.reasons.map((reason, idx) => (
+                            <span key={idx} className="px-2 py-0.5 bg-red-50 text-red-700 border border-red-100 rounded text-xs font-medium">
+                              {reason}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      
                       <div className="flex flex-wrap gap-4 text-sm text-gray-600">
                         <div className="flex items-center gap-1">
                           <Calendar size={14} />
                           <span>{new Date(alert.timestamp).toLocaleString('he-IL')}</span>
                         </div>
-                        {alert.detectionDistance !== null && alert.detectionDistance !== undefined && (
+                        {(alert.detectionDistance !== null && alert.detectionDistance !== undefined) && (
                           <div>
                             <span className="font-semibold">מרחק:</span> {alert.detectionDistance.toFixed(1)} מ'
                           </div>
@@ -425,4 +424,3 @@ const CrosswalkDetails = () => {
 };
 
 export default CrosswalkDetails;
-
