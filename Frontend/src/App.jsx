@@ -1,12 +1,13 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import Dashboard from "./components/Dashboard";
 import CrosswalksList from "./pages/CrosswalksList";
 import CrosswalkDetails from "./pages/CrosswalkDetails";
 import Statistics from "./pages/Statistics";
 import NotFound from "./pages/NotFound";
 import { Activity, MapPin, Home, TrendingUp } from "lucide-react";
+import { AlertsProvider } from "./context/AlertsContext";
 import "./App.css";
 import "./index.css";
 
@@ -105,54 +106,54 @@ function AnimatedRoutes() {
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={
-          <motion.div
+          <Motion.div
             variants={pageVariants}
             initial="initial"
             animate="animate"
             exit="exit"
           >
             <Dashboard />
-          </motion.div>
+          </Motion.div>
         } />
         <Route path="/crosswalks" element={
-          <motion.div
+          <Motion.div
             variants={pageVariants}
             initial="initial"
             animate="animate"
             exit="exit"
           >
             <CrosswalksList />
-          </motion.div>
+          </Motion.div>
         } />
         <Route path="/crosswalk/:id" element={
-          <motion.div
+          <Motion.div
             variants={pageVariants}
             initial="initial"
             animate="animate"
             exit="exit"
           >
             <CrosswalkDetails />
-          </motion.div>
+          </Motion.div>
         } />
         <Route path="/statistics" element={
-          <motion.div
+          <Motion.div
             variants={pageVariants}
             initial="initial"
             animate="animate"
             exit="exit"
           >
             <Statistics />
-          </motion.div>
+          </Motion.div>
         } />
         <Route path="*" element={
-          <motion.div
+          <Motion.div
             variants={pageVariants}
             initial="initial"
             animate="animate"
             exit="exit"
           >
             <NotFound />
-          </motion.div>
+          </Motion.div>
         } />
       </Routes>
     </AnimatePresence>
@@ -162,10 +163,12 @@ function AnimatedRoutes() {
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <AnimatedRoutes />
-      </div>
+      <AlertsProvider>
+        <div className="min-h-screen bg-gray-50">
+          <Navigation />
+          <AnimatedRoutes />
+        </div>
+      </AlertsProvider>
     </Router>
   );
 }

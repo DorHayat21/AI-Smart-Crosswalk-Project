@@ -1,5 +1,7 @@
 // API Base URL - relative so Vite proxy can forward to the backend
 const API_BASE_URL = "";
+const BACKEND_BASE_URL =
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
 
 /**
  * Helper function to get full image URL
@@ -21,7 +23,7 @@ export const getImageUrl = (imageUrl) => {
   // Convert relative path to backend URL
   // Remove leading slash if present
   const cleanPath = imageUrl.startsWith('/') ? imageUrl.slice(1) : imageUrl;
-  return `http://localhost:3000/${cleanPath}`;
+  return `${BACKEND_BASE_URL}/${cleanPath}`;
 };
 
 /**

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchCrosswalks, fetchAlerts, getImageUrl } from '../services/api';
 import { ArrowLeft, MapPin, Calendar, AlertTriangle, Image as ImageIcon, Activity, Filter, X } from 'lucide-react';
@@ -11,7 +11,6 @@ const CrosswalkDetails = () => {
   const navigate = useNavigate();
   const [crosswalk, setCrosswalk] = useState(null);
   const [alerts, setAlerts] = useState([]);
-  const [filteredAlerts, setFilteredAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -49,7 +48,6 @@ const CrosswalkDetails = () => {
         }).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
         setAlerts(crosswalkAlerts);
-        setFilteredAlerts(crosswalkAlerts);
         setError(null);
       } catch (err) {
         setError('שגיאה בטעינת הנתונים');
@@ -62,13 +60,12 @@ const CrosswalkDetails = () => {
     loadData();
   }, [id]);
 
-  useEffect(() => {
+  const filteredAlerts = useMemo(() => {
     if (!dateFilter.enabled || (!dateFilter.startDate && !dateFilter.endDate)) {
-      setFilteredAlerts(alerts);
-      return;
+      return alerts;
     }
 
-    const filtered = alerts.filter(alert => {
+    return alerts.filter(alert => {
       const alertDate = new Date(alert.timestamp);
       
       if (dateFilter.startDate && dateFilter.endDate) {
@@ -87,8 +84,6 @@ const CrosswalkDetails = () => {
       
       return true;
     });
-
-    setFilteredAlerts(filtered);
   }, [dateFilter, alerts]);
 
   const getStatusText = (status) => {

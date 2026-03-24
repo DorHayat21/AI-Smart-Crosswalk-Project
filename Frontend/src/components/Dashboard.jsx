@@ -1,22 +1,31 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { fetchAlerts, fetchCrosswalks } from "../services/api";
+import React, { useMemo, useState } from "react";
+import { fetchCrosswalks } from "../services/api";
 import { Activity } from "lucide-react";
 import ImageModal from "./ImageModal";
 import EventsTable from "./EventsTable";
 import CrosswalkCard from "./CrosswalkCard";
 import StatsChart from "./StatsChart";
 import { SkeletonCard, SkeletonTable, SkeletonChart } from "./SkeletonLoader";
+import { useRealTimeUpdates } from "../hooks/useRealTimeUpdates";
+import { useAlerts } from "../context/AlertsContext";
 
 const Dashboard = () => {
-  const [crosswalks, setCrosswalks] = useState([]);
-  const [alerts, setAlerts] = useState([]);
-  const [stats, setStats] = useState([
-    { name: "Detection Only", value: 0 },
-    { name: "True Alert (LEDs)", value: 0 },
-  ]);
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(null);
+  const {
+    data: crosswalksData,
+    loading: crosswalksLoading,
+    error: crosswalksError,
+  } = useRealTimeUpdates(fetchCrosswalks, 10000);
+  const {
+    alerts,
+    loading: alertsLoading,
+    error: alertsError,
+    connectionStatus,
+  } = useAlerts();
+
+  const crosswalks = useMemo(() => crosswalksData || [], [crosswalksData]);
+  const loading = crosswalksLoading || alertsLoading;
+  const error = crosswalksError || alertsError;
 
   const crosswalkNameMap = useMemo(() => {
     return new Map(crosswalks.map((cw) => [cw._id, cw.name]));
@@ -50,16 +59,16 @@ const Dashboard = () => {
           isHazard: alert.isHazard,
           imageUrl: alert.imageUrl,
           description: alert.description,
+          reasons: Array.isArray(alert.reasons) ? alert.reasons : [],
         };
       })
       .sort((a, b) => b.timestampValue - a.timestampValue);
   }, [alerts, crosswalkNameMap]);
 
-  const calculateStats = (alertList) => {
-    const total = alertList.length;
-    const activeAlerts = alertList.filter((a) => a.ledActivated).length;
+  const stats = useMemo(() => {
+    const total = alerts.length;
+    const activeAlerts = alerts.filter((alert) => alert.ledActivated).length;
     const passiveAlerts = total - activeAlerts;
-
     const activePct = total ? Math.round((activeAlerts / total) * 100) : 0;
     const passivePct = total ? Math.round((passiveAlerts / total) * 100) : 0;
 
@@ -67,37 +76,33 @@ const Dashboard = () => {
       { name: "Detection Only", value: passivePct },
       { name: "True Alert (LEDs)", value: activePct },
     ];
+  }, [alerts]);
+
+  const connectionBadge = {
+    connected: {
+      label: "Realtime connected",
+      dotClassName: "bg-emerald-400",
+    },
+    connecting: {
+      label: "Connecting live feed",
+      dotClassName: "bg-amber-400",
+    },
+    disconnected: {
+      label: "Realtime offline",
+      dotClassName: "bg-red-400",
+    },
+    error: {
+      label: "Realtime error",
+      dotClassName: "bg-red-400",
+    },
+  }[connectionStatus] || {
+    label: "Connecting live feed",
+    dotClassName: "bg-amber-400",
   };
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [crosswalkResponse, alertsResponse] = await Promise.all([
-          fetchCrosswalks(),
-          fetchAlerts(),
-        ]);
-
-        setCrosswalks(crosswalkResponse || []);
-        setAlerts(alertsResponse || []);
-        setStats(calculateStats(alertsResponse || []));
-        setError(null);
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-        setError("Error loading data from server.");
-      }
-
-      setLoading(false);
-    };
-
-    fetchData();
-    const intervalId = setInterval(fetchData, 5000);
-    return () => clearInterval(intervalId);
-  }, []);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[var(--surface)] text-[var(--ink)] pb-10">
-        {/* Header Skeleton */}
         <header className="sticky top-0 z-10 bg-gradient-to-r from-[#0f172a] via-[#111827] to-[#0f172a] shadow-md">
           <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-5 md:py-6 flex flex-col md:flex-row justify-between items-start gap-3 sm:gap-4 text-white">
             <div className="flex items-center gap-2 sm:gap-3 animate-pulse">
@@ -117,7 +122,6 @@ const Dashboard = () => {
         </header>
 
         <div className="max-w-7xl mx-auto px-3 sm:px-4 mt-4 sm:mt-6 space-y-4 sm:space-y-6">
-          {/* Crosswalks Skeleton */}
           <section className="space-y-2 sm:space-y-3">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 animate-pulse">
               <div>
@@ -132,7 +136,6 @@ const Dashboard = () => {
             </div>
           </section>
 
-          {/* Main Grid Skeleton */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             <div className="lg:col-span-2">
               <SkeletonTable />
@@ -143,7 +146,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Footer Skeleton */}
         <footer className="mt-6 sm:mt-10 px-3 sm:px-4">
           <div className="max-w-7xl mx-auto border-t border-gray-200 pt-3 sm:pt-4 pb-4 sm:pb-6 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 animate-pulse">
             <div className="h-4 bg-gray-200 rounded w-48"></div>
@@ -154,17 +156,17 @@ const Dashboard = () => {
     );
   }
 
-  if (error) return <div className="text-center p-6 text-red-600">{error}</div>;
+  if (error) {
+    return <div className="text-center p-6 text-red-600">{error}</div>;
+  }
 
   return (
     <div className="min-h-screen bg-[var(--surface)] text-[var(--ink)] pb-10">
-      {/* Image Modal */}
       <ImageModal
         imageUrl={selectedImage}
         onClose={() => setSelectedImage(null)}
       />
 
-      {/* --- HEADER --- */}
       <header className="sticky top-0 z-10 bg-gradient-to-r from-[#0f172a] via-[#111827] to-[#0f172a] shadow-md">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-5 md:py-6 flex flex-col md:flex-row justify-between items-start gap-3 sm:gap-4 text-white">
           <div className="flex items-center gap-2 sm:gap-3">
@@ -179,17 +181,22 @@ const Dashboard = () => {
                 Smart Crosswalk AI
               </h1>
               <p className="text-xs sm:text-sm text-white/70">
-                Monitoring {crosswalks.length} crosswalks · {alerts.length} alerts logged
+                Monitoring {crosswalks.length} crosswalks · {alerts.length} alerts
+                logged
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 w-full md:w-auto justify-between md:justify-end">
             <span className="inline-flex items-center gap-1.5 sm:gap-2 bg-white/10 border border-white/20 px-2 sm:px-3 py-1 rounded-full text-[9px] sm:text-[11px] font-semibold uppercase tracking-[0.12em]">
-              System Live
+              {connectionBadge.label}
               <span className="relative flex h-2.5 w-2.5 sm:h-3 sm:w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 bg-emerald-400"></span>
+                <span
+                  className={`animate-ping absolute inline-flex h-full w-full rounded-full ${connectionBadge.dotClassName} opacity-75`}
+                ></span>
+                <span
+                  className={`relative inline-flex rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 ${connectionBadge.dotClassName}`}
+                ></span>
               </span>
             </span>
           </div>
@@ -197,14 +204,15 @@ const Dashboard = () => {
       </header>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 mt-4 sm:mt-6 space-y-4 sm:space-y-6">
-        {/* --- CROSSWALKS STATUS --- */}
         <section className="space-y-2 sm:space-y-3">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <div>
               <p className="text-[9px] sm:text-[11px] uppercase tracking-[0.18em] text-[var(--muted)] font-semibold">
                 Network Health
               </p>
-              <h2 className="text-lg sm:text-xl font-semibold mt-1">System Nodes</h2>
+              <h2 className="text-lg sm:text-xl font-semibold mt-1">
+                System Nodes
+              </h2>
             </div>
             <span className="badge badge-neutral text-xs sm:text-sm">
               {crosswalks.length} active nodes
@@ -216,29 +224,29 @@ const Dashboard = () => {
             ))}
             {crosswalks.length === 0 && (
               <div className="col-span-2 text-sm text-[var(--muted)] ghost rounded-xl p-4 text-center">
-                No crosswalks found. Create crosswalks via the backend to see them here.
+                No crosswalks found. Create crosswalks via the backend to see
+                them here.
               </div>
             )}
           </div>
         </section>
 
-        {/* --- MAIN GRID --- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Recent Events Table */}
           <EventsTable events={formattedEvents} onImageClick={setSelectedImage} />
-
-          {/* Stats Chart */}
           <StatsChart stats={stats} />
         </div>
       </div>
 
-      {/* --- FOOTER --- */}
       <footer className="mt-6 sm:mt-10 px-3 sm:px-4">
         <div className="max-w-7xl mx-auto border-t border-gray-200 pt-3 sm:pt-4 pb-4 sm:pb-6 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 text-xs sm:text-sm text-[var(--muted)]">
           <span>Smart Crosswalk AI · Live monitoring</span>
           <span className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-            Last refresh every 5s
+            <span
+              className={`h-2 w-2 rounded-full ${connectionBadge.dotClassName}`}
+            ></span>
+            {connectionStatus === "connected"
+              ? "Live updates via Socket.io"
+              : "Using latest cached alerts"}
           </span>
         </div>
       </footer>

@@ -13,12 +13,15 @@ export const useRealTimeUpdates = (fetchFunction, interval = 5000, enabled = tru
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
   const intervalRef = useRef(null);
+  const startupTimeoutRef = useRef(null);
   const isMountedRef = useRef(true);
+  const inFlightRef = useRef(false);
 
   const fetchData = useCallback(async (showLoading = true) => {
-    if (!isMountedRef.current) return;
+    if (!isMountedRef.current || inFlightRef.current) return;
     
     try {
+      inFlightRef.current = true;
       if (showLoading) {
         setLoading(true);
       }
@@ -37,14 +40,18 @@ export const useRealTimeUpdates = (fetchFunction, interval = 5000, enabled = tru
         setLoading(false);
         console.error('Real-time update error:', err);
       }
+    } finally {
+      inFlightRef.current = false;
     }
   }, [fetchFunction]);
 
   useEffect(() => {
     isMountedRef.current = true;
     
-    // Initial fetch
-    fetchData(true);
+    // Initial fetch is scheduled asynchronously to avoid sync setState in effect body.
+    startupTimeoutRef.current = setTimeout(() => {
+      fetchData(true);
+    }, 0);
 
     // Setup polling if enabled
     if (enabled && interval > 0) {
@@ -56,6 +63,9 @@ export const useRealTimeUpdates = (fetchFunction, interval = 5000, enabled = tru
     // Cleanup
     return () => {
       isMountedRef.current = false;
+      if (startupTimeoutRef.current) {
+        clearTimeout(startupTimeoutRef.current);
+      }
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
@@ -83,12 +93,17 @@ export const useUpdateNotification = (lastUpdate) => {
 
   useEffect(() => {
     if (lastUpdate) {
-      setShowNotification(true);
+      const showTimer = setTimeout(() => {
+        setShowNotification(true);
+      }, 0);
       const timer = setTimeout(() => {
         setShowNotification(false);
       }, 2000);
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(showTimer);
+        clearTimeout(timer);
+      };
     }
   }, [lastUpdate]);
 

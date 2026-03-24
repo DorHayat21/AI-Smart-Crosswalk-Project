@@ -61,15 +61,22 @@ const EventsTable = ({ events, onImageClick }) => {
                 </td>
                 <td className="p-3 font-mono text-blue-600">{event.time}</td>
                 <td className="p-3 font-medium">
-                  <span
-                    className={`inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs font-semibold ${
-                      event.isHazard
-                        ? "bg-red-100 text-red-700"
-                        : "bg-emerald-50 text-emerald-700"
-                    }`}
-                  >
-                    {event.description || event.type}
-                  </span>
+                  <div className="space-y-1">
+                    <span
+                      className={`inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs font-semibold ${
+                        event.isHazard
+                          ? "bg-red-100 text-red-700"
+                          : "bg-emerald-50 text-emerald-700"
+                      }`}
+                    >
+                      {event.description || event.type}
+                    </span>
+                    {event.reasons?.length > 0 && (
+                      <p className="text-xs text-gray-500">
+                        {event.reasons.join(", ")}
+                      </p>
+                    )}
+                  </div>
                 </td>
                 <td className="p-3 font-bold text-gray-800">
                   {event.objectsCount || 1}

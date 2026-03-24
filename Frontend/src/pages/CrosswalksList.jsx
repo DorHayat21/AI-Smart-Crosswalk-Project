@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchCrosswalks } from '../services/api';
 import { Search, MapPin, Activity, AlertCircle, Filter, X } from 'lucide-react';
@@ -12,7 +12,6 @@ const CrosswalksList = () => {
   const { data: crosswalks, loading, error, refetch, lastUpdate } = useRealTimeUpdates(fetchCrosswalks, 10000);
   const showUpdateToast = useUpdateNotification(lastUpdate);
   
-  const [filteredCrosswalks, setFilteredCrosswalks] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
@@ -47,7 +46,7 @@ const CrosswalksList = () => {
         case 'ש': base = '(s|sh)'; break;
         case 'ת': base = 't'; break;
         case ' ': return '\\s*';
-        default: return char;
+        default: return char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       }
       
       // Add optional vowel after consonants (except last char)
@@ -67,43 +66,39 @@ const CrosswalksList = () => {
     }
   };
 
-  useEffect(() => {
-    if (crosswalks) {
-      setFilteredCrosswalks(crosswalks);
-    }
-  }, [crosswalks]);
+  const clearFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setShowFilters(false);
+  };
 
-  useEffect(() => {
-    if (!crosswalks) return;
-    
-    let filtered = [...crosswalks];
+  const allCrosswalks = useMemo(() => crosswalks || [], [crosswalks]);
+  const activeFiltersCount = (statusFilter !== 'all' ? 1 : 0) + (searchQuery ? 1 : 0);
+  const filteredCrosswalks = useMemo(() => {
+    let filtered = [...allCrosswalks];
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       const hebrewRegex = transliterateHebrewToEnglish(searchQuery); // Use original (not lowercase) for Hebrew detection
-      
+
       filtered = filtered.filter(crosswalk => {
         const name = crosswalk.name?.toLowerCase() || '';
         const status = crosswalk.status?.toLowerCase() || '';
         const id = crosswalk._id?.toLowerCase() || '';
         const address = crosswalk.location?.address?.toLowerCase() || '';
         const coordinates = `${crosswalk.location?.lat || ''} ${crosswalk.location?.lng || ''}`.toLowerCase();
-        
+
         // Check original query (English or Hebrew literal)
-        const matchesLiteral = name.includes(query) || 
-                               status.includes(query) || 
-                               id.includes(query) || 
+        const matchesLiteral = name.includes(query) ||
+                               status.includes(query) ||
+                               id.includes(query) ||
                                address.includes(query) ||
                                coordinates.includes(query);
-        
+
         // Check Hebrew-to-English regex match
         const nameMatchRegex = hebrewRegex ? hebrewRegex.test(name) : false;
         const addressMatchRegex = hebrewRegex ? hebrewRegex.test(address) : false;
-        const matchesRegex = nameMatchRegex || addressMatchRegex;
-        
-        const finalMatch = matchesLiteral || matchesRegex;
-        
-        return finalMatch;
+        return matchesLiteral || nameMatchRegex || addressMatchRegex;
       });
     }
 
@@ -111,18 +106,8 @@ const CrosswalksList = () => {
       filtered = filtered.filter(crosswalk => crosswalk.status === statusFilter);
     }
 
-    setFilteredCrosswalks(filtered);
-  }, [searchQuery, statusFilter, crosswalks]);
-
-  const clearFilters = () => {
-    setSearchQuery('');
-    setStatusFilter('all');
-    setShowFilters(false);
-  };
-
-  const activeFiltersCount = (statusFilter !== 'all' ? 1 : 0) + (searchQuery ? 1 : 0);
-  
-  const allCrosswalks = crosswalks || [];
+    return filtered;
+  }, [allCrosswalks, searchQuery, statusFilter]);
 
   const getStatusColor = (status) => {
     switch(status) {
