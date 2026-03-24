@@ -12,8 +12,7 @@ import { io } from "socket.io-client";
 import { fetchAlerts } from "../services/api";
 
 const AlertsContext = createContext(null);
-const SOCKET_URL =
-  import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
 
 const sortAlertsByTimestamp = (alerts) =>
   [...alerts].sort(

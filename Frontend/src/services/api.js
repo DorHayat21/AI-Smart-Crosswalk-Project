@@ -1,28 +1,39 @@
 // API Base URL - relative so Vite proxy can forward to the backend
 const API_BASE_URL = "";
 const BACKEND_BASE_URL =
-  import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
 
 /**
  * Helper function to get full image URL
  * Converts relative image paths to absolute URLs pointing to backend
+ * Also normalizes old URLs with incorrect ports
  */
 export const getImageUrl = (imageUrl) => {
   if (!imageUrl) return null;
 
-  // If already a full URL (http/https), return as is
-  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+  // If it's a data URI, return as is
+  if (imageUrl.startsWith("data:")) {
     return imageUrl;
   }
 
-  // If it's a data URI, return as is
-  if (imageUrl.startsWith('data:')) {
+  // If it's a full URL, check if it needs port correction
+  if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+    // Fix URLs with old port (3000 or other incorrect ports)
+    // Extract the path part and rebuild with correct backend URL
+    const urlObj = new URL(imageUrl);
+
+    // If the path starts with /output_images, use it with the correct backend
+    if (urlObj.pathname.startsWith("/output_images")) {
+      return `${BACKEND_BASE_URL}${urlObj.pathname}`;
+    }
+
+    // Otherwise return as-is (likely Cloudinary or other external URL)
     return imageUrl;
   }
 
   // Convert relative path to backend URL
   // Remove leading slash if present
-  const cleanPath = imageUrl.startsWith('/') ? imageUrl.slice(1) : imageUrl;
+  const cleanPath = imageUrl.startsWith("/") ? imageUrl.slice(1) : imageUrl;
   return `${BACKEND_BASE_URL}/${cleanPath}`;
 };
 
@@ -38,7 +49,7 @@ export const fetchCrosswalks = async () => {
     }
     return await response.json();
   } catch (error) {
-    console.error('Error fetching crosswalks:', error);
+    console.error("Error fetching crosswalks:", error);
     throw error;
   }
 };
@@ -55,7 +66,7 @@ export const fetchAlerts = async () => {
     }
     return await response.json();
   } catch (error) {
-    console.error('Error fetching alerts:', error);
+    console.error("Error fetching alerts:", error);
     throw error;
   }
 };
@@ -66,7 +77,9 @@ export const fetchAlerts = async () => {
  */
 export const fetchAlertsByCrosswalk = async (crosswalkId) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/alerts/crosswalk/${crosswalkId}`);
+    const response = await fetch(
+      `${API_BASE_URL}/alerts/crosswalk/${crosswalkId}`,
+    );
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -84,9 +97,9 @@ export const fetchAlertsByCrosswalk = async (crosswalkId) => {
 export const createAlert = async (alertData) => {
   try {
     const response = await fetch(`${API_BASE_URL}/ai/alerts`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(alertData),
     });
@@ -95,7 +108,7 @@ export const createAlert = async (alertData) => {
     }
     return await response.json();
   } catch (error) {
-    console.error('Error creating alert:', error);
+    console.error("Error creating alert:", error);
     throw error;
   }
 };
