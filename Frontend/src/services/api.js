@@ -1,7 +1,4 @@
-// API Base URL - relative so Vite proxy can forward to the backend
-const API_BASE_URL = "";
-const BACKEND_BASE_URL =
-  import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
 
 /**
  * Helper function to get full image URL
@@ -24,7 +21,7 @@ export const getImageUrl = (imageUrl) => {
 
     // If the path starts with /output_images, use it with the correct backend
     if (urlObj.pathname.startsWith("/output_images")) {
-      return `${BACKEND_BASE_URL}${urlObj.pathname}`;
+      return `${BASE_URL}${urlObj.pathname}`;
     }
 
     // Otherwise return as-is (likely Cloudinary or other external URL)
@@ -34,7 +31,7 @@ export const getImageUrl = (imageUrl) => {
   // Convert relative path to backend URL
   // Remove leading slash if present
   const cleanPath = imageUrl.startsWith("/") ? imageUrl.slice(1) : imageUrl;
-  return `${BACKEND_BASE_URL}/${cleanPath}`;
+  return `${BASE_URL}/${cleanPath}`;
 };
 
 /**
@@ -43,7 +40,7 @@ export const getImageUrl = (imageUrl) => {
  */
 export const fetchCrosswalks = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/crosswalks`);
+    const response = await fetch(`${BASE_URL}/crosswalks`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -60,7 +57,7 @@ export const fetchCrosswalks = async () => {
  */
 export const fetchAlerts = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/alerts`);
+    const response = await fetch(`${BASE_URL}/alerts`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -78,7 +75,7 @@ export const fetchAlerts = async () => {
 export const fetchAlertsByCrosswalk = async (crosswalkId) => {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/alerts/crosswalk/${crosswalkId}`,
+      `${BASE_URL}/alerts/crosswalk/${crosswalkId}`,
     );
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -96,7 +93,7 @@ export const fetchAlertsByCrosswalk = async (crosswalkId) => {
  */
 export const createAlert = async (alertData) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/ai/alerts`, {
+    const response = await fetch(`${BASE_URL}/ai/alerts`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
