@@ -21,15 +21,16 @@ dotenv.config(); // Load environment variables from .env file
 await connectDB(); // Execute DB Connection
 
 const app = express();
+const allowedOrigin = "https://ai-smart-crosswalk-project.vercel.app";
 const httpServer = createServer(app); // Create an HTTP server from the express app
 const io = new Server(httpServer, {
-  cors: { origin: "*" }, // Enable CORS for Socket.io
+  cors: { origin: allowedOrigin }, // Enable CORS for Socket.io
 });
 
 const PORT = process.env.PORT || 3000; // Default to 3000 if PORT is not set in .env
 
 // Middleware Setup
-app.use(cors()); // Enable CORS for all routes
+app.use(cors({ origin: allowedOrigin })); // Enable CORS for the Vercel frontend
 app.use(express.json()); // Parse JSON bodies for API requests
 
 // This allows the browser to access the images created by the AI
