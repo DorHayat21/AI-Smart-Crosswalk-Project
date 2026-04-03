@@ -28,6 +28,10 @@ const io = new Server(httpServer, {
 });
 
 const PORT = process.env.PORT || 3000; // Default to 3000 if PORT is not set in .env
+const isProduction = process.env.NODE_ENV === "production";
+const shouldStartAIEngine =
+  process.env.ENABLE_AI_ENGINE === "true" ||
+  (!isProduction && process.env.ENABLE_AI_ENGINE !== "false");
 
 // Middleware Setup
 app.use(cors({ origin: allowedOrigin })); // Enable CORS for the Vercel frontend
@@ -157,9 +161,6 @@ const startAIEngine = () => {
   });
 };
 
-// Fire up the AI engine
-startAIEngine();
-
 // Routes Mounting
 app.use("/crosswalks", crosswalkRoutes);
 app.use("/ai/alerts", alertRoutes); // For POST (AI)
@@ -175,4 +176,15 @@ app.get("/", (req, res) => {
 // Start Server using httpServer to support WebSockets
 httpServer.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
+
+  // Start the AI worker after the HTTP server is already accepting requests.
+  setImmediate(() => {
+    if (shouldStartAIEngine) {
+      startAIEngine();
+    } else {
+      console.log(
+        "[Server] AI engine startup skipped. Set ENABLE_AI_ENGINE=true to enable it.",
+      );
+    }
+  });
 });

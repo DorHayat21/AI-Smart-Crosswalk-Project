@@ -5,14 +5,29 @@ from ultralytics import YOLO # Ultralytics YOLOv8 for object detection and pose 
 import cv2 # OpenCV for image processing and annotation
 import numpy as np
 
+IS_PRODUCTION = os.getenv("NODE_ENV") == "production"
+DISABLE_VISUALIZATION = IS_PRODUCTION or os.getenv("AI_ENGINE_DISABLE_VISUALIZATION") == "true"
+POLL_INTERVAL_SECONDS = float(os.getenv("AI_ENGINE_POLL_INTERVAL", "2"))
+
+
+def log_event(payload):
+    print(json.dumps(payload), flush=True)
+
 def run_analysis():
     """
     Main AI Engine service for Smart Crosswalk monitoring.
     Optimized Feature: CCTV-Calibrated Head-to-Shoulder Posture Analysis.
     """
-    print(json.dumps({"status": "AI Engine starting with CCTV-Calibrated Logic..."}), flush=True) # Log startup status in JSON format for better integration with Node.js server
-    
-    model = YOLO('yolov8n-pose.pt') # Using the pose model for better posture analysis, especially from CCTV angles
+    log_event(
+        {
+            "status": "AI Engine starting with CCTV-Calibrated Logic...",
+            "model": "yolov8n-pose.pt",
+            "production": IS_PRODUCTION,
+            "visualization_disabled": DISABLE_VISUALIZATION,
+        }
+    )
+
+    model = YOLO("yolov8n-pose.pt") # Keep the smallest pose model for better memory usage in production
     
     base_dir = os.path.dirname(os.path.abspath(__file__)) # Get the directory of the current script
     input_dir = os.path.join(base_dir, 'test_images') # Directory where test images are stored
@@ -30,7 +45,7 @@ def run_analysis():
             img = cv2.imread(img_path) # Read the image using OpenCV because we need it for annotation and distance estimation
             if img is None: continue # Skip if the image cannot be read
 
-            results = model(img_path) # Run the YOLO model on the image to get detections and keypoints
+            results = model(img_path, verbose=not IS_PRODUCTION) # Run the YOLO model on the image to get detections and keypoints
             result = results[0] # We only process the first result since we are analyzing one image at a time
             
             is_dangerous = False # Flag to determine if the situation is dangerous based on detections and posture analysis
@@ -97,23 +112,25 @@ def run_analysis():
                     danger_reasons.append("Phone Distraction")
 
             # --- Visual Output ---
-            display_reasons = list(set(danger_reasons)) # Remove duplicates from reasons list, if any. This ensures that if multiple checks identify the same reason 
-            annotated_frame = result.plot() # Get the annotated frame from the YOLO result, which includes bounding boxes, keypoints, and class labels. This allows us to visually represent the detections and posture analysis on the image, making it easier for users or systems to understand why a particular situation was flagged as dangerous. The annotated frame will be saved as an output image and can also be used for debugging and further analysis.
-            
+            display_reasons = list(set(danger_reasons)) # Remove duplicates from reasons list, if any. This ensures that if multiple checks identify the same reason
+            final_file_name = None
+
             if is_dangerous: 
                 status_text = f"DANGER: {', '.join(display_reasons)} | Dist: {round(detection_distance, 1)}m" # Create a status text that includes the reasons for the danger status and the estimated distance to the detected person. This provides a clear and concise summary of the analysis results, which can be useful for both logging and for providing feedback to users or systems that are monitoring the situation.
                 color = (0, 0, 255) # Red color for danger status, which will be used to annotate the image and make it visually clear that the situation is dangerous. This color choice helps to quickly convey the severity of the situation when viewing the annotated image.
             else: 
                 status_text = f"Safe: Monitoring... | Dist: {round(detection_distance, 1)}m"
                 color = (0, 255, 0) # Green color for safe status, which will be used to annotate the image and indicate that the situation is currently considered safe. This color choice helps to quickly convey that there are no immediate dangers detected when viewing the annotated image.
-            
-            cv2.putText(annotated_frame, status_text, (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2) # Add the status text to the annotated frame, which provides a clear and immediate summary of the analysis results directly on the image. This allows users or systems that are monitoring the situation to quickly understand the current status (dangerous or safe) and the reasons for that status without needing to refer to separate logs or outputs. The text includes both the danger reasons and the estimated distance, making it a comprehensive summary of the analysis results.
 
-            # --- Final Sync ---
-            clean_base_name = os.path.splitext(file_name)[0].replace(" ", "_") # Create a clean base name for the output file by removing the extension and replacing spaces with underscores. This ensures that the output file name is consistent and does not contain any characters that could cause issues when saving or accessing the file. The final file name will be prefixed with "analyzed_" to clearly indicate that it is an output from the analysis process.
-            final_file_name = f"analyzed_{clean_base_name}.jpg" # Final file name for the annotated image, which includes a prefix to indicate that it has been analyzed. This helps to differentiate the output images from the original input images and makes it easier to identify which files have been processed by the AI engine. The final file name will be used when saving the annotated image to the output directory.
-            cv2.imwrite(os.path.join(output_dir, final_file_name), annotated_frame) # Save the annotated frame to the output directory with the final file name. This allows us to keep a record of the analyzed images with all the detections and posture analysis visually represented. The saved images can be used for further review, debugging, or for providing feedback to users or systems that are monitoring the situation.
-            
+            if not DISABLE_VISUALIZATION:
+                annotated_frame = result.plot() # Keep annotated output for local development and debugging only
+                cv2.putText(annotated_frame, status_text, (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2) # Add the status text to the annotated frame
+
+                # --- Final Sync ---
+                clean_base_name = os.path.splitext(file_name)[0].replace(" ", "_") # Create a clean base name for the output file by removing the extension and replacing spaces with underscores.
+                final_file_name = f"analyzed_{clean_base_name}.jpg" # Final file name for the annotated image
+                cv2.imwrite(os.path.join(output_dir, final_file_name), annotated_frame) # Save the annotated frame to the output directory with the final file name.
+
             result_json = { # Create a JSON object to represent the results of the analysis, which includes the event type, file name, danger status, reasons for the status, person count, description, estimated distance, and a timestamp. This structured format allows for easy integration with other systems, such as databases or APIs, and provides a clear and comprehensive summary of the analysis results that can be easily parsed and utilized by other components of the system.
                 "event": "ANALYSIS_COMPLETE",
                 "file": final_file_name,
@@ -124,10 +141,10 @@ def run_analysis():
                 "detection_distance": round(detection_distance, 2),
                 "timestamp": time.time()
             }
-            print(json.dumps(result_json), flush=True) # Output the result JSON to the console, which can be captured by the Node.js server to update the database and trigger any necessary alerts or notifications. This allows for real-time integration between the AI engine and the rest of the system, enabling a seamless flow of information and ensuring that the analysis results are immediately available for use in decision-making processes or for providing feedback to users.
+            log_event(result_json) # Output the result JSON to the console, which can be captured by the Node.js server to update the database and trigger any necessary alerts or notifications.
             analyzed_files.add(file_name) 
         
-        time.sleep(2) 
+        time.sleep(POLL_INTERVAL_SECONDS)
 
 if __name__ == "__main__":
     run_analysis()
